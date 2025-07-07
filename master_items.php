@@ -1,8 +1,18 @@
 <?php
-
+//zaiko/master_items.php
 require_once __DIR__ . '/includes/auth.php';
 require_once __DIR__ . '/includes/db.php';
+?>
 
+<style>
+    .table-responsive td {
+        word-wrap: break-word;
+        word-break: break-all;
+    }
+</style>
+
+<?php
+// Re-open PHP for the rest of the script
 // Set variables for your layout template
 $page_title = "Master Items";
 $view = __DIR__ . '/views/master_items_view.php';
@@ -18,3 +28,4 @@ $form_data = ['items' => $items];
 
 // This will render the sidebar, header, etc., and load your $view in the content area
 include __DIR__ . '/templates/layout.php';
+?>

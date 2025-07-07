@@ -47,7 +47,6 @@ try {
             $stmt_items->close();
 
             // 3. Log the inventory movement
-            // (You may need to fetch more item details if needed for the log)
             $movement_type = 'in';
             $reference_type = 'delivery';
             $insert_log_sql = "INSERT INTO inventory_movements (item_id, movement_type, quantity, reference_type, reference_id, user_id) VALUES (?, ?, ?, ?, ?, ?)";

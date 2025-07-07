@@ -25,7 +25,7 @@ $user_role = $_SESSION['role'] ?? null;
   <link rel="stylesheet" href="<?= $base_url ?? '' ?>assets/styles.css?v=<?= filemtime('assets/styles.css') ?>">
   <link rel="stylesheet" href="https://cdn.datatables.net/1.11.5/css/dataTables.bootstrap5.min.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
-
+  <link rel="stylesheet" href="https://cdn.datatables.net/responsive/2.5.0/css/responsive.bootstrap5.min.css">
   <style>
     :root {
       --sidebar-width: 280px;
@@ -605,8 +605,29 @@ $user_role = $_SESSION['role'] ?? null;
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
 <script src="https://cdn.datatables.net/1.11.5/js/dataTables.bootstrap5.min.js"></script>
+<script src="https://cdn.datatables.net/responsive/2.5.0/js/dataTables.responsive.min.js"></script>
+<script src="https://cdn.datatables.net/responsive/2.5.0/js/responsive.bootstrap5.min.js"></script>
   <script>
     $(document).ready(function() {
+
+    var table = $('#masterItemsTable').DataTable({
+        // This enables the horizontal scrollbar
+        scrollX: true, 
+        
+        // This sets the page length
+        pageLength: 10,
+        
+        // This makes sure the last column ('Actions') isn't sortable by default
+        columnDefs: [{ 
+            orderable: false, 
+            targets: -1 
+        }],
+
+        // This freezes the last column on the right so it's always visible
+        fixedColumns: {
+            right: 1
+        }
+    });
   // Prevent Enter key from submitting the form (except for textarea)
   $('#addItemForm input').on('keydown', function (e) {
     if (e.key === 'Enter' && this.type !== 'textarea') {
@@ -783,6 +804,7 @@ $('#addItemModal').on('shown.bs.modal', recalcAddItemPrices);
       }
     });
   </script>
+  
 </body>
 
 </html>

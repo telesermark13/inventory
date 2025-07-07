@@ -163,38 +163,62 @@ $updateUrl = $protocol . '://' . $host . $path_to_update_script;
 
 <script>
 $(document).ready(function() {
-    const columns = <?= json_encode(array_values($columns ?? [])) ?>;
-    
+    // This is the only DataTable initialization you need.
     var table = $('#masterItemsTable').DataTable({
+        // This enables the horizontal scrollbar
         scrollX: true,
+        
+        // This sets the page length
         pageLength: 10,
-        order: [[0, 'desc']],
+        
+        // This makes sure the last column ('Actions') isn't sortable by default
         columnDefs: [{ 
             orderable: false, 
-            searchable: false, 
-            targets: columns.length 
+            targets: -1 
         }],
+
+        // This freezes the last column on the right so it's always visible
         fixedColumns: {
-            right: 1 // Fix 1 column from the right
+            right: 1
         }
     });
 
-    $('#filterSKU').on('keyup change', () => table.column(columns.indexOf('sku')).search($('#filterSKU').val()).draw());
-    $('#filterName').on('keyup change', () => table.column(columns.indexOf('name')).search($('#filterName').val()).draw());
-    $('#filterCategory').on('change', () => table.column(columns.indexOf('category')).search($('#filterCategory').val()).draw());
+    // This part connects your custom search filters to the table
+    // It's a more robust way to target columns by name rather than index.
+    var columns = <?= json_encode(array_flip(array_map('strtolower', str_replace('_', ' ', $columns ?? [])))) ?>;
+    
+    $('#filterSKU').on('keyup change', function() {
+        if(columns['sku'] !== undefined) {
+            table.column(columns['sku']).search(this.value).draw();
+        }
+    });
+    $('#filterName').on('keyup change', function() {
+        if(columns['name'] !== undefined) {
+            table.column(columns['name']).search(this.value).draw();
+        }
+    });
+    $('#filterCategory').on('change', function() {
+        if(columns['category'] !== undefined) {
+            table.column(columns['category']).search(this.value).draw();
+        }
+    });
 
+
+    // This part populates the Edit modal with data
     $('#editItemModal').on('show.bs.modal', function (event) {
         var button = $(event.relatedTarget);
         var item = button.data('item');
         var modal = $(this);
+        
+        // Loop through all keys in the 'item' data and populate the form
         for (const key in item) {
-            const fieldId = '#edit' + (key.charAt(0).toUpperCase() + key.slice(1)).replace(/_([a-z])/g, g => g[1].toUpperCase());
-            modal.find(fieldId).val(item[key]);
+            modal.find('[name="' + key + '"]').val(item[key]);
         }
-        modal.find('#editItemId').val(item.id);
+        modal.find('#editItemId').val(item.id); // Ensure the hidden ID is set
     });
     
-     $('#editItemForm').on('submit', function(e) {
+    // This part handles the form submission when you save changes
+    $('#editItemForm').on('submit', function(e) {
         e.preventDefault();
         var formData = $(this).serialize();
         var submitButton = $(this).closest('.modal-content').find('button[type="submit"]');
@@ -211,16 +235,19 @@ $(document).ready(function() {
                 setTimeout(() => { location.reload(); }, 1500);
             },
             error: function(xhr) {
-                 let errorMsg = 'Could not update item.';
-                 if (xhr.responseJSON && xhr.responseJSON.error) {
+                let errorMsg = 'Could not update item.';
+                if (xhr.responseJSON && xhr.responseJSON.error) {
                     errorMsg = xhr.responseJSON.error;
-                 }
-                 showAlert(`<strong>Error!</strong> ${errorMsg}`, 'danger');
+                }
+                showAlert(`<strong>Error!</strong> ${errorMsg}`, 'danger');
+            },
+            complete: function() {
                  submitButton.prop('disabled', false).text('Save Changes');
             }
         });
     });
 
+    // Helper function to show alerts
     function showAlert(message, type) {
         $('#alert-placeholder').html(`<div class="alert alert-${type} alert-dismissible fade show" role="alert">${message}<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button></div>`);
     }
