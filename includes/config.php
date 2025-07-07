@@ -1,4 +1,5 @@
 <?php
+// zaiko/includes/config.php
 if (!defined('BASE_URL')) define('BASE_URL', '/inventory-system/');
 if (!defined('VIEWS_PATH')) define('VIEWS_PATH', __DIR__ . '/../views/');
 $config = [

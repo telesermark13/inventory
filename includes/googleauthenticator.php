@@ -1,4 +1,5 @@
 <?php
+// zaiko/includes/googleauthenticator.php
 /**
  * PHP Class for handling Google Authenticator 2-factor authentication.
  *

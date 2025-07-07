@@ -1,4 +1,5 @@
 <?php
+// zaiko/includes/auth.php
 $configPath = __DIR__ . '/config.php';
 if (!file_exists($configPath)) {
     die("Error: Missing config file at " . $configPath);

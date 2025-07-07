@@ -1,4 +1,5 @@
 <?php
+// /zaiko/delivery_receipt.php
 session_start();
 // This path will now work correctly because this file is in the main project directory
 require_once __DIR__ . '/includes/db.php'; 

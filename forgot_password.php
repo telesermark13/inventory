@@ -1,4 +1,5 @@
 <?php
+//zaiko/tools.php
 include 'includes/db.php';
 
 $success = false;

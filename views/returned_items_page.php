@@ -1,4 +1,5 @@
 <?php
+// zaiko/views/returned_items_page.php
 // --- DEBUG: Log all POST data (delete this after testing!) ---
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     file_put_contents('debug_add_return.log', print_r($_POST, true)); // Remove this after checking!

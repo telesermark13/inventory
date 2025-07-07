@@ -1,4 +1,5 @@
 <?php
+// zaiko/includes/purchase_functions.php
 function create_purchase_order($conn, $request_id, $supplier_id, $user_id, $initial_status = 'pending')
 {
     $stmt_req_date = $conn->prepare("SELECT request_date FROM materials_requests WHERE id = ?");

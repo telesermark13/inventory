@@ -1,4 +1,5 @@
 <?php
+// zaiko/restore.php
 require_once __DIR__ . '/includes/auth.php';
 require_once __DIR__ . '/includes/is_admin.php';
 

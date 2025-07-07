@@ -1,101 +1,110 @@
 <?php
-// inventory-system/purchase_order_action.php
+// zaiko/process_po_receipt.php
 require_once __DIR__ . '/includes/auth.php';
-// require_once __DIR__ . '/includes/is_admin.php'; // Or specific role for purchasing actions
 require_once __DIR__ . '/includes/db.php';
 
-if ($_SERVER['REQUEST_METHOD'] !== 'POST') { /* ... */ }
-if (!isset($_POST['csrf_token']) || !hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'])) { /* ... */ }
-if (!isset($_POST['po_id']) || !filter_var($_POST['po_id'], FILTER_VALIDATE_INT) || !isset($_POST['action'])) { /* ... */ }
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    header("Location: purchase_orders.php");
+    exit;
+}
 
-$po_id = (int)$_POST['po_id'];
-$action = $_POST['action'];
-$user_id = $_SESSION['user_id'];
+$order_id = filter_input(INPUT_POST, 'order_id', FILTER_VALIDATE_INT);
+$received_by = $_SESSION['user_id'];
+$date_received = $_POST['date_received'];
+$notes = $_POST['notes'];
+$sales_invoice_no = $_POST['sales_invoice_no'];
+$items_received = $_POST['quantity_received'] ?? [];
+$item_ids = $_POST['item_id'] ?? [];
+$serial_numbers = $_POST['serial_numbers'] ?? [];
+
+if (!$order_id) {
+    $_SESSION['error'] = "Invalid Purchase Order ID.";
+    header('Location: purchase_orders.php');
+    exit;
+}
 
 $conn->begin_transaction();
+
 try {
-    $stmt_po_details = $conn->prepare("SELECT status, request_id FROM purchase_orders WHERE id = ?");
-    if(!$stmt_po_details) throw new Exception("Prepare select PO failed: ".$conn->error);
-    $stmt_po_details->bind_param("i", $po_id);
-    $stmt_po_details->execute();
-    $po_details_res = $stmt_po_details->get_result();
-    if($po_details_res->num_rows === 0) throw new Exception("PO #{$po_id} not found.");
-    $po_current_data = $po_details_res->fetch_assoc();
-    $stmt_po_details->close();
+    // Loop through each item from the form
+    for ($i = 0; $i < count($item_ids); $i++) {
+        $item_id = (int)$item_ids[$i];
+        $quantity_to_receive = (float)$items_received[$i];
 
-    $new_status = $po_current_data['status']; // Default to current status
+        if ($quantity_to_receive > 0) {
+            // 1. Update the quantity_received in purchase_order_items
+            $update_poi_sql = "UPDATE purchase_order_items SET quantity_received = quantity_received + ? WHERE order_id = ? AND item_id = ?";
+            $stmt_poi = $conn->prepare($update_poi_sql);
+            $stmt_poi->bind_param('dii', $quantity_to_receive, $order_id, $item_id);
+            $stmt_poi->execute();
+            $stmt_poi->close();
 
-    if ($action === 'mark_as_purchased') { // This is "Ordered" in our refined enum
-        if (!in_array($po_current_data['status'], ['pending', 'pending_po_approval', 'approved_to_order'])) {
-            throw new Exception("PO #{$po_id} cannot be marked as purchased from its current state: " . $po_current_data['status']);
+            // 2. Update the main inventory quantity in the items table
+            $update_items_sql = "UPDATE items SET quantity = quantity + ? WHERE id = ?";
+            $stmt_items = $conn->prepare($update_items_sql);
+            $stmt_items->bind_param('di', $quantity_to_receive, $item_id);
+            $stmt_items->execute();
+            $stmt_items->close();
+
+            // 3. Log the inventory movement
+            // (You may need to fetch more item details if needed for the log)
+            $movement_type = 'in';
+            $reference_type = 'delivery';
+            $insert_log_sql = "INSERT INTO inventory_movements (item_id, movement_type, quantity, reference_type, reference_id, user_id) VALUES (?, ?, ?, ?, ?, ?)";
+            $stmt_log = $conn->prepare($insert_log_sql);
+            $stmt_log->bind_param('isdsii', $item_id, $movement_type, $quantity_to_receive, $reference_type, $order_id, $received_by);
+            $stmt_log->execute();
+            $stmt_log->close();
         }
-        $new_status = 'ordered'; // Or 'purchased' if you add that to your enum
-        $stmt = $conn->prepare("UPDATE purchase_orders SET status = ?, updated_at = NOW() WHERE id = ?");
-        if (!$stmt) throw new Exception("Prepare update PO status (purchased) failed: " . $conn->error);
-        $stmt->bind_param("si", $new_status, $po_id);
-        if (!$stmt->execute()) throw new Exception("Execute update PO status (purchased) failed: " . $stmt->error);
-        $stmt->close();
-        $_SESSION['success'] = "PO #{$po_id} marked as '{$new_status}'.";
-
-    } elseif ($action === 'cancel_po') {
-        if (in_array($po_current_data['status'], ['fully_received', 'cancelled'])) {
-             throw new Exception("PO #{$po_id} is already {$po_current_data['status']} and cannot be cancelled.");
-        }
-        $new_status = 'cancelled';
-        $stmt = $conn->prepare("UPDATE purchase_orders SET status = ?, updated_at = NOW() WHERE id = ?");
-        if (!$stmt) throw new Exception("Prepare update PO status (cancel) failed: " . $conn->error);
-        $stmt->bind_param("si", $new_status, $po_id);
-        if (!$stmt->execute()) throw new Exception("Execute update PO status (cancel) failed: " . $stmt->error);
-        $stmt->close();
-
-        // Optional: Update related Material Request status
-        if ($po_current_data['request_id']) {
-            $mr_id_to_update = $po_current_data['request_id'];
-            // Change this status to whatever makes sense in your workflow, e.g., 'closed_po_cancelled'
-            // or 'pending_resourcing' if it needs to be looked at again.
-            $new_mr_status_after_po_cancel = 'closed_po_cancelled';
-            $stmt_update_mr = $conn->prepare("UPDATE materials_requests SET status = ? WHERE id = ? AND status NOT IN ('completed', 'denied')");
-            if($stmt_update_mr){
-                $stmt_update_mr->bind_param("si", $new_mr_status_after_po_cancel, $mr_id_to_update);
-                $stmt_update_mr->execute();
-                $stmt_update_mr->close();
-            }
-        }
-        $_SESSION['success'] = "PO #{$po_id} has been cancelled.";
-
-    } elseif ($action === 'update_po_notes') {
-        if (!isset($_POST['po_notes'])) throw new Exception("Notes not provided for update.");
-        $po_notes = trim($_POST['po_notes']);
-        $stmt = $conn->prepare("UPDATE purchase_orders SET notes = ?, updated_at = NOW() WHERE id = ?");
-        if (!$stmt) throw new Exception("Prepare update PO notes failed: " . $conn->error);
-        $stmt->bind_param("si", $po_notes, $po_id);
-        if (!$stmt->execute()) throw new Exception("Execute update PO notes failed: " . $stmt->error);
-        $stmt->close();
-        $_SESSION['success'] = "Notes for PO #{$po_id} updated.";
     }
-    // Add 'approve_po_to_order' from previous response if you have that intermediate step
-    else if ($action === 'approve_po_to_order') {
-        if ($po_current_data['status'] !== 'pending_po_approval') {
-            throw new Exception("PO is not in 'Pending Approval' state.");
-        }
-        $new_status = 'approved_to_order';
-        $stmt = $conn->prepare("UPDATE purchase_orders SET status = ?, updated_at = NOW() WHERE id = ?");
-        if (!$stmt) throw new Exception("Prepare update PO status failed: " . $conn->error);
-        $stmt->bind_param("si", $new_status, $po_id);
-        if (!$stmt->execute()) throw new Exception("Execute update PO status failed: " . $stmt->error);
-        $stmt->close();
-        $_SESSION['success'] = "Purchase Order #{$po_id} approved for ordering.";
+
+    // --- Status Calculation Logic ---
+    // Recalculate the total ordered vs. total received for the entire PO
+    $total_ordered = 0;
+    $total_received = 0;
+    $check_sql = "SELECT quantity, quantity_received FROM purchase_order_items WHERE order_id = ?";
+    $check_stmt = $conn->prepare($check_sql);
+    $check_stmt->bind_param('i', $order_id);
+    $check_stmt->execute();
+    $result = $check_stmt->get_result();
+    while ($row = $result->fetch_assoc()) {
+        $total_ordered += $row['quantity'];
+        $total_received += $row['quantity_received'];
     }
-    else {
-        throw new Exception("Invalid action: " . htmlspecialchars($action));
+    $check_stmt->close();
+
+    // Determine the new status based on the totals
+    if (floatval($total_received) >= floatval($total_ordered)) {
+        $new_status = 'fully_received';
+    } elseif (floatval($total_received) > 0) {
+        $new_status = 'partially_received';
+    } else {
+        // Fallback to the original status if nothing was received
+        $status_sql = "SELECT status FROM purchase_orders WHERE id = ?";
+        $status_stmt = $conn->prepare($status_sql);
+        $status_stmt->bind_param('i', $order_id);
+        $status_stmt->execute();
+        $new_status = $status_stmt->get_result()->fetch_assoc()['status'];
+        $status_stmt->close();
     }
+    
+    // 4. Update the main purchase_orders table status and notes
+    $update_po_sql = "UPDATE purchase_orders SET status = ?, sales_invoice_no = ?, po_notes = CONCAT(COALESCE(po_notes, ''), ?) WHERE id = ?";
+    $stmt_po = $conn->prepare($update_po_sql);
+    $note_to_append = "\nReceived on $date_received by user ID $received_by. Invoice: $sales_invoice_no. Notes: $notes";
+    $stmt_po->bind_param('sssi', $new_status, $sales_invoice_no, $note_to_append, $order_id);
+    $stmt_po->execute();
+    $stmt_po->close();
 
     $conn->commit();
+    $_SESSION['success'] = "Successfully received items for PO #{$order_id}.";
+
 } catch (Exception $e) {
     $conn->rollback();
-    error_log("PO Action Error for PO #{$po_id}: " . $e->getMessage());
-    $_SESSION['error'] = "Error: " . $e->getMessage();
+    error_log("Receive PO Error for PO #{$order_id}: " . $e->getMessage());
+    $_SESSION['error'] = "Error processing receipt: " . $e->getMessage();
 }
+
 header("Location: purchase_orders.php");
-exit;
+exit();
 ?>

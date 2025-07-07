@@ -1,4 +1,5 @@
 <?php
+// zaiko/views/materials_request_view.php
 if (!isset($_GET['id'])) {
     header("Location: materials_request_admin.php");
     exit;

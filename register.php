@@ -1,4 +1,5 @@
 <?php
+// zaiko/receive_purchase_order.php
 include 'includes/db.php';
 
 $errors = [];

@@ -1,4 +1,5 @@
 <?php
+// zaiko/includes/helpers.php
 function validate_input($data) {
     $data = trim($data);
     $data = stripslashes($data);

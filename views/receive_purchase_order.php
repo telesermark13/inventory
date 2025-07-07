@@ -1,5 +1,5 @@
 <?php
-// views/receive_po_form.php
+// zaiko/views/receive_purchase_order.php
 global $po_header, $po_items; // From controller
 ?>
 <div class="card-body">

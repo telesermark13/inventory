@@ -1,4 +1,5 @@
 <?php
+//zaiko/update_item.php
 require_once __DIR__ . '/includes/auth.php'; // Adjust path as needed
 require_once __DIR__ . '/includes/is_admin.php'; // Adjust path as needed
 require_once __DIR__ . '/includes/db.php'; // Adjust path as needed

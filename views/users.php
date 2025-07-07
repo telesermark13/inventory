@@ -1,5 +1,5 @@
 <?php
-// views/users.php
+// zaiko/views/users.php
 
 // Session should already be started in auth.php, but for safety:
 if (session_status() == PHP_SESSION_NONE) session_start();

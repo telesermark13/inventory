@@ -1,4 +1,5 @@
 <?php
+// /zaiko/delivery_receipt.php
 require_once __DIR__ . '/includes/auth.php';
 require_once __DIR__ . '/includes/is_admin.php';
 require_once __DIR__ . '/includes/db.php';

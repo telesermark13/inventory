@@ -1,5 +1,5 @@
 <?php
-// FILE: zaiko/dashboard.php (The Controller)
+//zaiko/dashboard.php
 
 // Authentication and Database
 require_once __DIR__ . '/includes/auth.php';

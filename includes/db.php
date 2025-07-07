@@ -1,4 +1,5 @@
 <?php
+// zaiko/includes/db.php
 require_once __DIR__ . '/config.php';
 try {
     // Use either the config array OR the direct variables, not both

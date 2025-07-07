@@ -1,4 +1,5 @@
 <?php
+//zaiko/tools.php
 require_once __DIR__ . '/includes/config.php'; // Adjust path as needed
 require_once __DIR__ . '/includes/auth.php';   // Adjust path as needed
 

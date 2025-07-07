@@ -1,4 +1,5 @@
 <?php
+// zaiko/templates/layout.php
 if (session_status() == PHP_SESSION_NONE) session_start();
 $user_role = $_SESSION['role'] ?? null;
 ?>

@@ -1,4 +1,5 @@
 <?php
+// zaiko/views/tools_content.php
 require_once 'includes/auth.php';
 require_once 'includes/db.php';
 if (!in_array($_SESSION['user']['role'], ['admin', 'manager'])) {

@@ -1,4 +1,5 @@
 <?php
+// zaiko/save_delivery_comment.php
 require_once 'includes/db.php';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {

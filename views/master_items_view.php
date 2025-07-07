@@ -1,4 +1,5 @@
 <?php
+// zaiko/views/master_items_view.php
 // Note: $items is already passed from the controller
 $columns = [];
 if (!empty($items)) {

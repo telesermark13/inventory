@@ -1,5 +1,5 @@
 <?php
-// inventory-system/purchase_orders.php (Controller)
+// zaiko/purchase_orders.php
 
 // Ensure config is loaded first for constants like VIEWS_PATH
 require_once __DIR__ . '/includes/config.php';

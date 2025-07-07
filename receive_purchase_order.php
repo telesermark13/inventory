@@ -1,4 +1,5 @@
 <?php
+// zaiko/receive_purchase_order.php
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/db.php';
 

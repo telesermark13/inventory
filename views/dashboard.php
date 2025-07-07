@@ -1,6 +1,6 @@
-
 <?php
-// FILE: zaiko/views/dashboard.php (The View)
+
+// zaiko/views/dashboard.php
 // This file contains only the presentation code. All data is provided by the controller.
 ?>
 <style>
