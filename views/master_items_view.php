@@ -155,33 +155,19 @@ $updateUrl = $protocol . '://' . $host . $path_to_update_script;
     </div>
 </div>
 
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-<script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
-<script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap5.min.js"></script>
-<script src="https://cdn.datatables.net/fixedcolumns/4.3.0/js/dataTables.fixedColumns.min.js"></script>
-
 <script>
 $(document).ready(function() {
     // This is the only DataTable initialization you need.
-    var table = $('#masterItemsTable').DataTable({
-        // This enables the horizontal scrollbar
-        scrollX: true,
-        
-        // This sets the page length
-        pageLength: 10,
-        
-        // This makes sure the last column ('Actions') isn't sortable by default
-        columnDefs: [{ 
-            orderable: false, 
-            targets: -1 
-        }],
-
-        // This freezes the last column on the right so it's always visible
-        fixedColumns: {
-            right: 1
-        }
-    });
+var table = $('#masterItemsTable').DataTable({
+    destroy: true,
+    responsive: true, // Use the responsive feature instead
+    pageLength: 10,
+    order: [[0, 'desc']], // Order by the first column (ID)
+    columnDefs: [{ 
+        orderable: false, 
+        targets: -1 
+    }]
+});
 
     // This part connects your custom search filters to the table
     // It's a more robust way to target columns by name rather than index.
