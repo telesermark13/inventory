@@ -17,100 +17,64 @@ $category_options = [
 
 $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https" : "http";
 $host = $_SERVER['HTTP_HOST'];
-$path_to_update_script = dirname($_SERVER['SCRIPT_NAME']) . '/update_master_item.php';
+$script_name = str_replace(basename($_SERVER['SCRIPT_NAME']), '', $_SERVER['SCRIPT_NAME']);
+$path_to_update_script = rtrim($script_name, '/') . '/update_master_item.php';
 $updateUrl = $protocol . '://' . $host . $path_to_update_script;
 ?>
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Master Items</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap5.min.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.datatables.net/fixedcolumns/4.3.0/css/fixedColumns.bootstrap5.min.css">
-    
-    <style>
-        body { background: #f9fafb; }
-        .page-title { display: flex; align-items: center; gap: 1rem; font-weight: 600; font-size: 2rem; margin-bottom: 0; }
-        .card.master-items-card { 
-            border-radius: 2rem; 
-            box-shadow: 0 4px 24px 0 #e4e9f0; 
-            border: none; 
-            padding: 2.5rem 2rem; 
-            margin-top: 1.5rem;
-            overflow: hidden; /* **CHANGE**: Prevents content from breaking card radius */
-        }
-        table.dataTable th, table.dataTable td { 
-            vertical-align: middle; 
-            white-space: nowrap; /* **CHANGE**: Prevents text wrapping in cells */
-        }
-        table.dataTable td.dtfc-fixed-right,
-        table.dataTable th.dtfc-fixed-right {
-            background-color: #fdfdff;
-        }
 
-        /* **CHANGE**: Makes the DataTables wrapper scrollable, ensuring the scrollbar is visible */
-        .dataTables_wrapper .dataTables_scroll {
-            width: 100%;
-            overflow-x: auto;
-        }
-    </style>
-</head>
-<body>
-<div class="container py-4">
-    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-3">
-        <span class="page-title"><i class="bi bi-box-seam"></i> Master Items</span>
-        <div class="row g-2 datatable-custom-filters w-100" style="max-width: 700px;">
-            <div class="col-md-4"><input id="filterSKU" type="text" class="form-control" placeholder="Filter by SKU"></div>
-            <div class="col-md-4"><input id="filterName" type="text" class="form-control" placeholder="Filter by Name"></div>
-            <div class="col-md-4">
-                <select id="filterCategory" class="form-select">
-                    <option value="">All Categories</option>
-                    <?php foreach ($category_options as $cat): ?>
-                        <option value="<?= htmlspecialchars($cat) ?>"><?= htmlspecialchars($cat) ?></option>
-                    <?php endforeach; ?>
-                </select>
+<div class="container-fluid mt-4">
+    <div class="card">
+        <div class="card-header">
+            <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center">
+                <h5 class="card-title mb-2 mb-md-0"><i class="bi bi-box-seam"></i> Master Items</h5>
+                <div class="row g-2 datatable-custom-filters" style="max-width: 600px;">
+                    <div class="col-md-4"><input id="filterSKU" type="text" class="form-control form-control-sm" placeholder="Filter by SKU"></div>
+                    <div class="col-md-4"><input id="filterName" type="text" class="form-control form-control-sm" placeholder="Filter by Name"></div>
+                    <div class="col-md-4">
+                        <select id="filterCategory" class="form-select form-select-sm">
+                            <option value="">All Categories</option>
+                            <?php foreach ($category_options as $cat): ?>
+                                <option value="<?= htmlspecialchars($cat) ?>"><?= htmlspecialchars($cat) ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                </div>
             </div>
         </div>
-    </div>
-
-    <div class="card master-items-card">
-        <div id="alert-placeholder"></div>
-        
-        <table id="masterItemsTable" class="table table-striped table-bordered align-middle m-0 w-100">
-            <thead>
-                <tr>
-                    <?php foreach ($columns as $col): ?>
-                        <th><?= htmlspecialchars(ucwords(str_replace('_', ' ', $col))) ?></th>
-                    <?php endforeach; ?>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                <?php if (!empty($items)): ?>
-                    <?php foreach ($items as $item): ?>
+        <div class="card-body">
+            <div id="alert-placeholder"></div>
+            <div class="table-responsive">
+                <table id="masterItemsTable" class="table table-striped table-bordered table-hover" style="width:100%">
+                    <thead>
                         <tr>
                             <?php foreach ($columns as $col): ?>
-                                <td><?= htmlspecialchars($item[$col]) ?></td>
+                                <th><?= htmlspecialchars(ucwords(str_replace('_', ' ', $col))) ?></th>
                             <?php endforeach; ?>
-                            <td>
-                                <button type="button" class="btn btn-primary btn-sm edit-btn"
-                                        data-bs-toggle="modal"
-                                        data-bs-target="#editItemModal"
-                                        data-item='<?= htmlspecialchars(json_encode($item), ENT_QUOTES, 'UTF-8') ?>'>
-                                    <i class="bi bi-pencil-square"></i> Edit
-                                </button>
-                            </td>
+                            <th>Actions</th>
                         </tr>
-                    <?php endforeach; ?>
-                <?php else: ?>
-                    <tr><td colspan="<?= count($columns) + 1 ?>" class="text-center text-muted">No items found.</td></tr>
-                <?php endif; ?>
-            </tbody>
-        </table>
+                    </thead>
+                    <tbody>
+                        <?php if (!empty($items)): ?>
+                            <?php foreach ($items as $item): ?>
+                                <tr>
+                                    <?php foreach ($columns as $col): ?>
+                                        <td><?= htmlspecialchars($item[$col]) ?></td>
+                                    <?php endforeach; ?>
+                                    <td>
+                                        <button type="button" class="btn btn-primary btn-sm edit-btn"
+                                                data-bs-toggle="modal"
+                                                data-bs-target="#editItemModal"
+                                                data-item='<?= htmlspecialchars(json_encode($item), ENT_QUOTES, 'UTF-8') ?>'>
+                                            <i class="bi bi-pencil-square"></i> Edit
+                                        </button>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
+                    </tbody>
+                </table>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -123,7 +87,7 @@ $updateUrl = $protocol . '://' . $host . $path_to_update_script;
             </div>
             <div class="modal-body">
                 <form id="editItemForm">
-                     <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token'] ?? '') ?>">
+                    <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token'] ?? '') ?>">
                     <input type="hidden" id="editItemId" name="id">
                     <div class="row">
                         <div class="col-md-8 mb-3"><label for="editName" class="form-label">Name</label><input type="text" class="form-control" id="editName" name="name" required></div>
@@ -135,7 +99,7 @@ $updateUrl = $protocol . '://' . $host . $path_to_update_script;
                         <div class="col-md-3 mb-3"><label for="editUnit" class="form-label">Unit</label><input type="text" class="form-control" id="editUnit" name="unit"></div>
                         <div class="col-md-3 mb-3"><label for="editQuantity" class="form-label">Quantity</label><input type="number" class="form-control" id="editQuantity" name="quantity" step="any"></div>
                     </div>
-                     <div class="row">
+                    <div class="row">
                         <div class="col-md-4 mb-3"><label for="editUnitPrice" class="form-label">Unit Price</label><input type="number" class="form-control" id="editUnitPrice" name="unit_price" step="any"></div>
                         <div class="col-md-4 mb-3"><label for="editPriceTaxed" class="form-label">Price (Taxed)</label><input type="number" class="form-control" id="editPriceTaxed" name="price_taxed" step="any"></div>
                         <div class="col-md-4 mb-3"><label for="editPriceNontaxed" class="form-label">Price (Non-Taxed)</label><input type="number" class="form-control" id="editPriceNontaxed" name="price_nontaxed" step="any"></div>
@@ -155,22 +119,20 @@ $updateUrl = $protocol . '://' . $host . $path_to_update_script;
     </div>
 </div>
 
+
 <script>
 $(document).ready(function() {
-    // This is the only DataTable initialization you need.
-var table = $('#masterItemsTable').DataTable({
-    destroy: true,
-    responsive: true, // Use the responsive feature instead
-    pageLength: 10,
-    order: [[0, 'desc']], // Order by the first column (ID)
-    columnDefs: [{ 
-        orderable: false, 
-        targets: -1 
-    }]
-});
+        var table = $('#masterItemsTable').DataTable({
+        destroy: true,      // Keeps this to prevent errors
+        responsive: true,   // This is the most important line
+        pageLength: 10,
+        order: [[0, 'desc']], // Orders by the first column (ID)
+        columnDefs: [{ 
+            orderable: false, 
+            targets: -1     // Makes the last column (Actions) not sortable
+        }]
+    });
 
-    // This part connects your custom search filters to the table
-    // It's a more robust way to target columns by name rather than index.
     var columns = <?= json_encode(array_flip(array_map('strtolower', str_replace('_', ' ', $columns ?? [])))) ?>;
     
     $('#filterSKU').on('keyup change', function() {
@@ -189,21 +151,18 @@ var table = $('#masterItemsTable').DataTable({
         }
     });
 
-
-    // This part populates the Edit modal with data
     $('#editItemModal').on('show.bs.modal', function (event) {
         var button = $(event.relatedTarget);
         var item = button.data('item');
         var modal = $(this);
         
-        // Loop through all keys in the 'item' data and populate the form
+        // ** THIS IS THE CORRECTED LOOP **
+        // It finds form fields by their 'name' attribute, which is more reliable.
         for (const key in item) {
             modal.find('[name="' + key + '"]').val(item[key]);
         }
-        modal.find('#editItemId').val(item.id); // Ensure the hidden ID is set
     });
     
-    // This part handles the form submission when you save changes
     $('#editItemForm').on('submit', function(e) {
         e.preventDefault();
         var formData = $(this).serialize();
@@ -233,11 +192,8 @@ var table = $('#masterItemsTable').DataTable({
         });
     });
 
-    // Helper function to show alerts
     function showAlert(message, type) {
         $('#alert-placeholder').html(`<div class="alert alert-${type} alert-dismissible fade show" role="alert">${message}<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button></div>`);
     }
 });
 </script>
-</body>
-</html>
