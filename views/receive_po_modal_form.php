@@ -53,8 +53,8 @@ $_SESSION['csrf_token'] = bin2hex(random_bytes(16));
     <div class="mb-3">
         <label for="sales_invoice_no" class="form-label">Sales Invoice #</label>
         <input type="text" name="sales_invoice_no" id="sales_invoice_no"
-               class="form-control" value="<?= htmlspecialchars($po_header['sales_invoice_no'] ?? '') ?>"
-               placeholder="Sales Invoice #" required>
+            class="form-control" value="<?= htmlspecialchars($po_header['sales_invoice_no'] ?? '') ?>"
+            placeholder="Sales Invoice #" required>
     </div>
 
     <div class="row mb-3">
@@ -88,25 +88,23 @@ $_SESSION['csrf_token'] = bin2hex(random_bytes(16));
             </thead>
             <tbody>
                 <?php foreach ($po_items as $item):
-                    $ordered = (float)$item['quantity'];
-                    $received = (float)$item['quantity_received'];
+                    $ordered = (float)($item['quantity'] ?? 0);
+                    $received = (float)($item['quantity_received'] ?? 0);
                     $outstanding = $ordered - $received;
                 ?>
-                <tr>
-                    <td><?= htmlspecialchars($item['item_name']) ?></td>
-                    <td><?= htmlspecialchars($item['sku']) ?></td>
-                    <td><?= htmlspecialchars($item['serial_number'] ?? 'N/A') ?></td>
-                    <td><?= htmlspecialchars($item['unit']) ?></td>
-                    <td><?= number_format($ordered, 2) ?></td>
-                    <td><?= number_format($received, 2) ?></td>
-                    <td><?= number_format($outstanding, 2) ?></td>
-                    <td>
-                        <input type="number" name="received_qty[]" class="form-control form-control-sm text-end"
-                               value="0" min="0" max="<?= $outstanding ?>"
-                               step="any" <?= $outstanding <= 0 ? 'readonly' : '' ?>>
-                        <input type="hidden" name="item_id[]" value="<?= $item['item_id'] ?>">
-                    </td>
-                </tr>
+                    <tr>
+                        <td><?= htmlspecialchars($item['item_name'] ?? '') ?></td>
+                        <td><?= htmlspecialchars($item['sku'] ?? '') ?></td>
+                        <td><?= htmlspecialchars($item['serial_number'] ?? '') ?></td>
+                        <td><?= htmlspecialchars($item['unit'] ?? '') ?></td>
+                        <td class="text-end"><?= number_format($ordered, 2) ?></td>
+                        <td class="text-end"><?= number_format($received, 2) ?></td>
+                        <td class="text-end"><?= number_format($outstanding, 2) ?></td>
+                        <td>
+                            <input type="hidden" name="poi_id[]" value="<?= $item['id'] ?>">
+                            <input type="number" name="quantity_received[]" class="form-control form-control-sm text-end" value="0" min="0" max="<?= $outstanding ?>" step="any" <?= $outstanding <= 0 ? 'readonly' : '' ?>>
+                        </td>
+                    </tr>
                 <?php endforeach; ?>
             </tbody>
         </table>
@@ -136,11 +134,11 @@ $_SESSION['csrf_token'] = bin2hex(random_bytes(16));
 </form>
 
 <script>
-document.querySelector('.needs-validation').addEventListener('submit', function(event){
-    if (!this.checkValidity()) {
-        event.preventDefault();
-        event.stopPropagation();
-    }
-    this.classList.add('was-validated');
-});
+    document.querySelector('.needs-validation').addEventListener('submit', function(event) {
+        if (!this.checkValidity()) {
+            event.preventDefault();
+            event.stopPropagation();
+        }
+        this.classList.add('was-validated');
+    });
 </script>

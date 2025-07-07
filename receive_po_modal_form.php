@@ -86,6 +86,7 @@ $_SESSION['csrf_token'] = bin2hex(random_bytes(16));
                 <tr>
                     <td><?= htmlspecialchars($item['item_name']) ?></td>
                     <td><?= htmlspecialchars($item['sku']) ?></td>
+                    
                     <td><?= htmlspecialchars($item['unit']) ?></td>
                     <td><?= number_format($ordered, 2) ?></td>
                     <td><?= number_format($received, 2) ?></td>
