@@ -1,5 +1,5 @@
 <?php
-// /zaiko/delivery_receipt.php
+// /zaiko/delete_supplier.php
 require_once __DIR__ . '/includes/auth.php';
 require_once __DIR__ . '/includes/db.php';
 

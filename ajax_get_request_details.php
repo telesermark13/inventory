@@ -1,5 +1,5 @@
 <?php
-// /zaiko/delivery_receipt.php
+// /zaiko/ajax_get_request_details.php
 require_once 'includes/db.php';
 require_once 'includes/auth.php';
 

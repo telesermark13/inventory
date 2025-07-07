@@ -1,5 +1,5 @@
 <?php
-//zaiko/tools.php
+//zaiko/edit_item.php
 require_once __DIR__ . '/includes/config.php';
 require_once __DIR__ . '/includes/auth.php';
 

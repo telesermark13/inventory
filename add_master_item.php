@@ -1,5 +1,5 @@
 <?php
-// /zaiko/delivery_receipt.php
+// /zaiko/add_master_item.php
 require_once __DIR__ . '/includes/db.php';
 
 // Sanitize & fetch form inputs

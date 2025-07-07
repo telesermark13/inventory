@@ -21,7 +21,7 @@ $po_sql = "
 $stmt = $conn->prepare($po_sql);
 $stmt->bind_param("i", $po_id);
 $stmt->execute();
-$po_res = $stmt->get_result();response_code: 
+$po_res = $stmt->get_result();
 $po = $po_res->fetch_assoc();
 $stmt->close();
 

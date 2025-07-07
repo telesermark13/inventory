@@ -1,5 +1,5 @@
 <?php
-//zaiko/tools.php
+//zaiko/forgot_password.php
 include 'includes/db.php';
 
 $success = false;

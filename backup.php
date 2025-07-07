@@ -1,5 +1,5 @@
 <?php
-// /zaiko/delivery_receipt.php
+// /zaiko/backup.php
 require_once __DIR__ . '/includes/auth.php';
 require_once __DIR__ . '/includes/is_admin.php'; // Only admins can use
 date_default_timezone_set('Asia/Manila'); // Set to your timezone

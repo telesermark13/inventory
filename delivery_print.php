@@ -1,5 +1,5 @@
 <?php
-// /zaiko/delivery_receipt.php
+// /zaiko/delivery_print.php
 require_once 'db.php';
 $receipt_id = $_GET['id'];
 
