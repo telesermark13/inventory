@@ -541,15 +541,15 @@ $user_role = $_SESSION['role'] ?? null;
           </div>
           <div class="row g-3 mt-3">
             <div class="col-md-4">
-              <label class="form-label">Calc. Non-Taxed Unit Price</label>
+              <label class="form-label">VAT ex</label>
               <input class="form-control" type="text" id="addPriceNonTaxedDisplay" readonly value="0.00">
             </div>
             <div class="col-md-4">
-              <label class="form-label">Calc. Taxed Unit Price</label>
+              <label class="form-label">Taxed Unit Price</label>
               <input class="form-control" type="text" id="addPriceTaxedDisplay" readonly value="0.00">
             </div>
             <div class="col-md-4">
-              <label class="form-label">Calc. Total Value (Taxed)</label>
+              <label class="form-label">Total Value</label>
               <input class="form-control" type="text" id="addTotalPriceDisplay" readonly value="0.00">
             </div>
           </div>
