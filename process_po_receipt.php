@@ -9,81 +9,79 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit(json_encode(['success' => false, 'message' => 'Invalid request method.']));
 }
 
-// --- FIX: Read the exact field names from your form ---
-$order_id = filter_input(INPUT_POST, 'po_id', FILTER_VALIDATE_INT);
+// CSRF check
+if (!isset($_POST['csrf_token']) || !hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'])) {
+    exit(json_encode(['success' => false, 'message' => 'Invalid security token. Please refresh and try again.']));
+}
+
+$po_id = filter_input(INPUT_POST, 'po_id', FILTER_VALIDATE_INT);
 $sales_invoice_no = trim($_POST['sales_invoice_no'] ?? '');
-$notes = trim($_POST['receiving_notes'] ?? '');
-$quantities_received = $_POST['received_qty'] ?? [];
-$item_ids = $_POST['item_id'] ?? [];
+$receiving_notes = trim($_POST['po_notes'] ?? ''); // From your form
+$submitted_items = $_POST['items'] ?? [];
 
-
-if (!$order_id || empty($item_ids)) {
-    exit(json_encode(['success' => false, 'message' => 'Invalid data submitted.']));
+if (!$po_id || empty($submitted_items) || $sales_invoice_no === '') {
+    exit(json_encode(['success' => false, 'message' => 'Missing PO ID, items, or Sales Invoice Number.']));
 }
 
 $conn->begin_transaction();
-
 try {
-    for ($i = 0; $i < count($item_ids); $i++) {
-        $item_id = (int)$item_ids[$i];
-        $quantity_to_receive = (float)($quantities_received[$i] ?? 0);
-
-        if ($quantity_to_receive > 0) {
-            // Update quantity received for the specific line item
-            // FIX: Uses item_id and order_id to find the correct line
-            $update_poi_sql = "UPDATE purchase_order_items SET quantity_received = quantity_received + ? WHERE order_id = ? AND item_id = ?";
-            $stmt_poi = $conn->prepare($update_poi_sql);
-            $stmt_poi->bind_param('dii', $quantity_to_receive, $order_id, $item_id);
+    foreach ($submitted_items as $item_data) {
+        $po_item_id = filter_var($item_data['po_item_id'], FILTER_VALIDATE_INT);
+        $master_item_id = filter_var($item_data['master_item_id'], FILTER_VALIDATE_INT);
+        $qty_receiving_now = filter_var($item_data['qty_receiving_now'], FILTER_VALIDATE_FLOAT);
+        
+        if ($qty_receiving_now > 0) {
+            // 1. Update the quantity received on the specific PO line item
+            $stmt_poi = $conn->prepare("UPDATE purchase_order_items SET quantity_received = quantity_received + ? WHERE id = ? AND order_id = ?");
+            $stmt_poi->bind_param('dii', $qty_receiving_now, $po_item_id, $po_id);
             $stmt_poi->execute();
             $stmt_poi->close();
 
-            // Update the main inventory stock
-            $update_items_sql = "UPDATE items SET quantity = quantity + ? WHERE id = ?";
-            $stmt_items = $conn->prepare($update_items_sql);
-            $stmt_items->bind_param('di', $quantity_to_receive, $item_id);
+            // 2. Update the main inventory stock in the `items` table
+            // IMPORTANT: This assumes a record in `items` exists for this `master_item_id`. 
+            // Your `materials_request_approve.php` script should ensure this.
+            $stmt_items = $conn->prepare("UPDATE items SET quantity = quantity + ? WHERE master_item_id = ?");
+            $stmt_items->bind_param('di', $qty_receiving_now, $master_item_id);
             $stmt_items->execute();
             $stmt_items->close();
+            
+            // 3. (Recommended) Log this transaction in inventory_movements
+            // You would add this logic here if you have the inventory_movements table set up.
         }
     }
 
-    // Recalculate totals to determine the new status
-    $total_ordered = 0;
-    $total_received = 0;
-    $check_stmt = $conn->prepare("SELECT quantity, quantity_received FROM purchase_order_items WHERE order_id = ?");
-    $check_stmt->bind_param('i', $order_id);
-    $check_stmt->execute();
-    $result = $check_stmt->get_result();
-    while ($row = $result->fetch_assoc()) {
-        $total_ordered += (float)$row['quantity'];
-        $total_received += (float)$row['quantity_received'];
-    }
-    $check_stmt->close();
+    // 4. Recalculate totals to determine the new overall PO status
+    $stmt_check = $conn->prepare("SELECT SUM(quantity) as total_ordered, SUM(quantity_received) as total_received FROM purchase_order_items WHERE order_id = ?");
+    $stmt_check->bind_param('i', $po_id);
+    $stmt_check->execute();
+    $totals = $stmt_check->get_result()->fetch_assoc();
+    $stmt_check->close();
 
-    // Determine the new status
-    $new_status = 'ordered'; 
-    if ($total_received > 0 && $total_received < $total_ordered) {
+    $total_ordered = (float)($totals['total_ordered'] ?? 0);
+    $total_received = (float)($totals['total_received'] ?? 0);
+    
+    $new_status = 'ordered'; // Default status
+    if ($total_received > 0.001 && $total_received < $total_ordered) {
         $new_status = 'partially_received';
     } elseif ($total_received >= $total_ordered) {
         $new_status = 'fully_received';
     }
 
-    // Update the main purchase order status and invoice number
-    // FIX: Also updates notes correctly
-    $note_to_append = "\nReceived on " . date('Y-m-d') . ". Invoice: $sales_invoice_no. Notes: $notes";
-    $update_po_sql = "UPDATE purchase_orders SET status = ?, sales_invoice_no = ?, po_notes = CONCAT(COALESCE(po_notes, ''), ?) WHERE id = ?";
-    $stmt_po = $conn->prepare($update_po_sql);
-    $stmt_po->bind_param('sssi', $new_status, $sales_invoice_no, $note_to_append, $order_id);
+    // 5. Update the main purchase order status and invoice number
+    $note_to_append = "\nReceived on " . date('Y-m-d') . ". Invoice: " . $sales_invoice_no;
+    $stmt_po = $conn->prepare("UPDATE purchase_orders SET status = ?, sales_invoice_no = ?, po_notes = CONCAT(COALESCE(po_notes, ''), ?) WHERE id = ?");
+    $stmt_po->bind_param('sssi', $new_status, $sales_invoice_no, $note_to_append, $po_id);
     $stmt_po->execute();
     $stmt_po->close();
 
     $conn->commit();
-    $_SESSION['success'] = "Successfully received items for PO #{$order_id}.";
+    $_SESSION['success'] = "Successfully received items for PO #{$po_id}.";
     echo json_encode(['success' => true, 'message' => $_SESSION['success']]);
 
 } catch (Exception $e) {
     $conn->rollback();
-    error_log("Receive PO Error for PO #{$order_id}: " . $e->getMessage());
-    echo json_encode(['success' => false, 'message' => 'Error processing receipt. Check server logs.']);
+    error_log("Receive PO Error for PO #{$po_id}: " . $e->getMessage());
+    echo json_encode(['success' => false, 'message' => 'A database error occurred. Please check server logs.']);
 }
 
 exit();

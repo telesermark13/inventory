@@ -97,19 +97,20 @@ $(document).ready(function() {
     $('#purchaseOrdersTable').DataTable({ order: [[0, 'desc']] });
 
     // Handle "View" button click
-    $('.view-po').on('click', function() {
-        var poId = $(this).data('id');
-        $('#viewPoModalBody').html('<p>Loading details...</p>');
-        $('#viewPoModal').modal('show');
-        $('#viewPoModalBody').load('ajax_get_po_details.php?po_id=' + poId);
-    });
+   $('.view-po').on('click', function() {
+    var poId = $(this).data('id');
+    $('#viewPoModalBody').html('<p>Loading details...</p>');
+    $('#viewPoModal').modal('show');
+    // This path must be correct
+    $('#viewPoModalBody').load('ajax_get_po_details.php?po_id=' + poId); 
+});
 
     // Handle "Receive" button click
     $('.receive-po').on('click', function() {
         var poId = $(this).data('id');
         $('#receivePoModalBody').html('<p>Loading form...</p>');
         $('#receivePoModal').modal('show');
-        $('#receivePoModalBody').load('views/receive_po_modal_form.php?po_id=' + poId);
+       $('#receivePoModalBody').load('ajax_load_receive_form.php?po_id=' + poId);
     });
 
     // **FIX**: Handle form submission for the Receive modal

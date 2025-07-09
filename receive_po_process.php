@@ -1,63 +1,83 @@
 <?php
-// zaiko/receive_po_process.php
-require_once __DIR__ . '/../includes/db.php';
-require_once __DIR__ . '/../includes/auth.php';
+session_start();
+require_once '../includes/db_connect.php'; // Adjust path if needed
+require_once '../includes/purchase_functions.php'; // For update_po_status_after_receiving
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $po_id = intval($_POST['po_id']);
-    $user_id = $_SESSION['user_id'];
+    $po_id = $_POST['po_id'];
+    $sales_invoice_no = $_POST['sales_invoice_no'];
+    $notes = $_POST['notes'];
+    $received_by_user_id = $_SESSION['user_id']; // Make sure user_id is in the session
 
-    $fully_received = true;
+    // === BEGIN TRANSACTION ===
+    $conn->begin_transaction();
 
-    foreach ($_POST['received_qty'] as $index => $qty) {
-        $item_id = intval($_POST['item_id'][$index]);
-        $received_qty = floatval($qty);
+    try {
+        // Step 1: Get all items associated with this purchase order
+        $po_items_sql = "SELECT id, item_id, quantity FROM purchase_order_items WHERE order_id = ?";
+        $stmt_po_items = $conn->prepare($po_items_sql);
+        $stmt_po_items->bind_param("i", $po_id);
+        $stmt_po_items->execute();
+        $po_items_result = $stmt_po_items->get_result();
 
-        if ($received_qty <= 0) continue;
-
-        // Fetch PO item details
-        $stmt = $conn->prepare("SELECT quantity, quantity_received, item_id, unit_price FROM purchase_order_items WHERE id = ?");
-        $stmt->bind_param("i", $item_id);
-        $stmt->execute();
-        $result = $stmt->get_result();
-        $item_data = $result->fetch_assoc();
-
-        $ordered_qty = $item_data['quantity'];
-        $existing_received = $item_data['quantity_received'];
-        $inventory_item_id = $item_data['item_id'];
-        $price = $item_data['unit_price'];
-
-        $new_received = $existing_received + $received_qty;
-
-        // Update PO item received quantity
-        $stmt = $conn->prepare("UPDATE purchase_order_items SET quantity_received = ? WHERE id = ?");
-        $stmt->bind_param("di", $new_received, $item_id);
-        $stmt->execute();
-
-        // Check if full
-        if ($new_received < $ordered_qty) {
-            $fully_received = false;
+        if ($po_items_result->num_rows === 0) {
+            throw new Exception("CRITICAL: No items found for this Purchase Order (ID: $po_id).");
         }
 
-        // Update inventory
-        $stmt = $conn->prepare("UPDATE items SET quantity = quantity + ? WHERE id = ?");
-        $stmt->bind_param("di", $received_qty, $inventory_item_id);
-        $stmt->execute();
+        while ($item = $po_items_result->fetch_assoc()) {
+            $item_id = $item['item_id'];
+            $quantity_received = $item['quantity']; // Assuming full receipt
 
-        // Log inventory movement
-        $stmt = $conn->prepare("INSERT INTO inventory_movements (item_id, movement_type, quantity, price_nontaxed, reference_type, reference_id, user_id) VALUES (?, 'in', ?, ?, 'purchase_order', ?, ?)");
-        $stmt->bind_param("idiii", $inventory_item_id, $received_qty, $price, $po_id, $user_id);
-        $stmt->execute();
+            // Step 2: UPDATE THE INVENTORY in the 'items' table (This was the missing step)
+            $update_inventory_sql = "UPDATE items SET quantity = quantity + ? WHERE id = ?";
+            $stmt_update = $conn->prepare($update_inventory_sql);
+            $stmt_update->bind_param("ii", $quantity_received, $item_id);
+            $stmt_update->execute();
+            if ($stmt_update->affected_rows === 0) {
+                // This could mean the item_id doesn't exist in the 'items' table, which is a data integrity issue.
+                // For now, we throw an error. You could also choose to INSERT it if it doesn't exist.
+                throw new Exception("Failed to update inventory for item ID: $item_id. Item not found in inventory.");
+            }
+            $stmt_update->close();
+
+            // Step 3: LOG THE MOVEMENT in 'inventory_movements' for an audit trail
+            $log_movement_sql = "INSERT INTO inventory_movements (item_id, movement_type, quantity, reference_type, reference_id, user_id) VALUES (?, 'in', ?, 'purchase_order', ?, ?)";
+            $stmt_log = $conn->prepare($log_movement_sql);
+            $stmt_log->bind_param("iiii", $item_id, $quantity_received, $po_id, $received_by_user_id);
+            $stmt_log->execute();
+            $stmt_log->close();
+
+            // Step 4: Update the 'quantity_received' in the 'purchase_order_items' table
+            $update_po_item_sql = "UPDATE purchase_order_items SET quantity_received = quantity_received + ? WHERE id = ?";
+            $stmt_po_item_update = $conn->prepare($update_po_item_sql);
+            $stmt_po_item_update->bind_param("ii", $quantity_received, $item['id']);
+            $stmt_po_item_update->execute();
+            $stmt_po_item_update->close();
+        }
+        $stmt_po_items->close();
+
+        // Step 5: Update the main PO status
+        update_po_status_after_receiving($conn, $po_id);
+
+        // Step 6: Log notes and Sales Invoice
+        $full_notes = "\nReceived on " . date('Y-m-d') . ". Notes: " . $notes;
+        $update_notes_sql = "UPDATE purchase_orders SET notes = CONCAT(IFNULL(notes,''), ?), sales_invoice_no = ? WHERE id = ?";
+        $stmt_notes = $conn->prepare($update_notes_sql);
+        $stmt_notes->bind_param("ssi", $full_notes, $sales_invoice_no, $po_id);
+        $stmt_notes->execute();
+        $stmt_notes->close();
+        
+        // If all steps succeeded, commit the transaction
+        $conn->commit();
+        $_SESSION['success'] = 'PO received and inventory updated successfully!';
+
+    } catch (Exception $e) {
+        // If any step failed, roll back all database changes
+        $conn->rollback();
+        $_SESSION['error'] = 'Transaction Failed: ' . $e->getMessage();
     }
 
-    // Update PO status
-    $status = $fully_received ? 'fully_received' : 'partially_received';
-    $stmt = $conn->prepare("UPDATE purchase_orders SET status = ? WHERE id = ?");
-    $stmt->bind_param("si", $status, $po_id);
-    $stmt->execute();
-
-    $_SESSION['success'] = "Purchase order successfully received.";
-    header("Location: ../purchase_orders.php");
-    exit;
+    header('Location: ../purchase_orders.php'); // Redirect back to the PO list
+    exit();
 }
 ?>
